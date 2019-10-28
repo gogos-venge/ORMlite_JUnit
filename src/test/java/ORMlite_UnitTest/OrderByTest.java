@@ -46,7 +46,7 @@ public class OrderByTest {
          */
         qBuilder.selectColumns(column).groupBy(column).orderByRaw("? IS NULL ASC", selectArg);
         
-        assertEquals(qBuilder.prepareStatementString(), "SELECT `testColumn` FROM `testobject` GROUP BY `testColumn` ORDER BY `testColumn` IS NULL ASC");
+        assertEquals("SELECT `testColumn` FROM `testobject` GROUP BY `testColumn` ORDER BY `testColumn` IS NULL ASC", qBuilder.prepareStatementString());
 	}
 
 }
