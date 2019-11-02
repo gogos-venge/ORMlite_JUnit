@@ -16,5 +16,10 @@ public class TestObject {
 	public void setTestColumn(String testColumn) {
 		this.testColumn = testColumn;
 	}
+	
+	@Override
+	public String toString() {
+		return getTestColumn();
+	}
 
 }
