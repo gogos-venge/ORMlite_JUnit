@@ -11,8 +11,7 @@ import com.j256.ormlite.dao.Dao;
 import com.j256.ormlite.dao.DaoManager;
 import com.j256.ormlite.field.SqlType;
 import com.j256.ormlite.jdbc.JdbcConnectionSource;
-import com.j256.ormlite.logger.Logger;
-import com.j256.ormlite.logger.LoggerFactory;
+import com.j256.ormlite.logger.*;
 import com.j256.ormlite.stmt.QueryBuilder;
 import com.j256.ormlite.stmt.SelectArg;
 import com.j256.ormlite.support.ConnectionSource;
@@ -22,6 +21,8 @@ public class OrderByTest {
 	
 	private String[] fruits = {"apple", "orange", "raspberry" };
 
+	private Logger Logger = LoggerFactory.getLogger(getClass());
+	
 	@Test
 	public void test() throws SQLException{
 
@@ -38,12 +39,16 @@ public class OrderByTest {
         
         //Create random objects
         createMockData(testDao);
-        
+  
         //Get Query builder
         QueryBuilder<TestObject, String> qBuilder = testDao.queryBuilder();
         
         //Set column name
         String column = "testColumn";
+        
+        //show what's in the database
+        Logger.info(implodeList(qBuilder.selectColumns(column).query(), '-'));
+        qBuilder.reset();
         
         //Create select arg
         SelectArg selectArg = new SelectArg(SqlType.STRING, column);
@@ -61,9 +66,9 @@ public class OrderByTest {
         qBuilder.selectColumns(column).groupBy(column).orderByRaw("? IS NULL ASC", selectArg);
         
         //Get and append results
-        String result1 = appendList(qBuilder.query());
+        String result1 = implodeList(qBuilder.query(), '\n');
         
-        /* Results. ORDER BY <columnName> IS NULL should give the null values last. But instead this query gives us this:
+        /* Results. "ORDER BY <columnName> IS NULL" (where columnName is testColumn here) should give the null values last. But instead this query gives us this:
          * null
          * apple
          * orange
@@ -76,7 +81,7 @@ public class OrderByTest {
         //testColumn is now hardcoded
         qBuilder.selectColumns(column).groupBy(column).orderByRaw("`testColumn` IS NULL ASC");
         
-        String result2 = appendList(qBuilder.query());
+        String result2 = implodeList(qBuilder.query(), '\n');
         
         /* Results. When hardcoding the query, the result takes the correct form:
          * apple
@@ -99,20 +104,26 @@ public class OrderByTest {
 		 */
 		
 		for(int i = 0; i < 5; i++) {
+			//Random fruit word
 			TestObject randomString = new TestObject();
 			randomString.setTestColumn(fruits[i % fruits.length]);
 			dao.create(randomString);
 			
+			//Null value
 			TestObject nullTest = new TestObject();
 			nullTest.setTestColumn(null);
 			dao.create(nullTest);
 		}
 	}
 	
-	private <T> String appendList(List<T> list) {
+	private <T> String implodeList(List<T> list, char implodeCharacter) {
 		StringBuilder sb = new StringBuilder();
-		for(T t : list) {
-        	sb.append(t.toString() + "\n");
+		for(int i = 0; i < list.size(); ++i) {
+			T t = list.get(i);
+			sb.append(t.toString());
+			if(i < list.size() - 1) {
+				sb.append(implodeCharacter);
+			}
         }
 		return sb.toString();
 	}
