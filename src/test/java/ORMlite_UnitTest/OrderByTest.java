@@ -2,6 +2,7 @@ package ORMlite_UnitTest;
 
 import static org.junit.Assert.*;
 
+import java.io.File;
 import java.sql.SQLException;
 import java.util.List;
 
@@ -24,7 +25,7 @@ public class OrderByTest {
 	private Logger Logger = LoggerFactory.getLogger(getClass());
 	
 	@Test
-	public void test() throws SQLException{
+	public void testH2() throws SQLException{
 
         String databaseUrl = "jdbc:h2:mem:test";
 
@@ -91,6 +92,85 @@ public class OrderByTest {
          */
         
         assertEquals(result2, result1);
+
+	}
+
+	@Test
+	public void testSQLite() throws Exception {
+
+		File f = new File("test.db");
+		if(f.exists()) {
+			if (!f.delete()) {
+				throw new Exception("Could not delete previous database file");
+			}
+		}
+
+		//SQlite database
+		String databaseUrl = "jdbc:sqlite:test.db";
+
+		//Connect to SQLite
+		ConnectionSource connectionSource = new JdbcConnectionSource(databaseUrl);
+
+		//Get DAO
+		Dao<TestObject, String> testDao = DaoManager.createDao(connectionSource, TestObject.class);
+
+		//Create table for TestObject
+		TableUtils.createTable(connectionSource, TestObject.class);
+
+		//Create random objects
+		createMockData(testDao);
+
+		//Get Query builder
+		QueryBuilder<TestObject, String> qBuilder = testDao.queryBuilder();
+
+		//Set column name
+		String column = "testColumn";
+
+		//show what's in the database
+		Logger.info(implodeList(qBuilder.selectColumns(column).query(), '-'));
+		qBuilder.reset();
+
+		//Create select arg
+		SelectArg selectArg = new SelectArg(SqlType.STRING, column);
+
+		/* JavaDoc for orderByRaw: "args Optional arguments that correspond to any ? specified in the rawSql.
+		 * Each of the arguments must have the sql-type set."
+		 *
+		 * passing "? IS NULL ASC" as a rawSql and selectArg as an argument should, based on the javadocs, produce
+		 * the query below:
+		 * "SELECT `testColumn` FROM `testobject` GROUP BY `testColumn` ORDER BY `testColumn` IS NULL ASC"
+		 *
+		 * Instead the query still contains the ? character:
+		 * SELECT `testColumn` FROM `testobject` GROUP BY `testColumn` ORDER BY ? IS NULL ASC
+		 */
+		qBuilder.selectColumns(column).groupBy(column).orderByRaw("? IS NULL ASC", selectArg);
+
+		//Get and append results
+		String result1 = implodeList(qBuilder.query(), '\n');
+
+		/* Results. "ORDER BY <columnName> IS NULL" (where columnName is testColumn here) should give the null values last. But instead this query gives us this:
+		 * null
+		 * apple
+		 * orange
+		 * raspberry
+		 */
+
+		//Reset for another test query
+		qBuilder.reset();
+
+		//testColumn is now hardcoded
+		qBuilder.selectColumns(column).groupBy(column).orderByRaw("`testColumn` IS NULL ASC");
+
+		String result2 = implodeList(qBuilder.query(), '\n');
+
+		/* Results. When hardcoding the query, the result takes the correct form:
+		 * apple
+		 * orange
+		 * raspberry
+		 * null
+		 */
+
+		assertEquals(result2, result1);
 
 	}
 	
